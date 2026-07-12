@@ -1,319 +1,166 @@
--- MM2 HUB (Ryzen Edition)
--- Интерфейс в стиле фотки (полупрозрачный фон, неоновые кнопки, вкладки)
-local Library = loadstring(game:HttpGet("https://pastebin.com/raw/..."))() -- библиотека для GUI (замените на реальную)
+-- Thunder Style UI
+-- Roblox Studio LocalScript
 
-local Window = Library:CreateWindow("Ryzen MM2", Vector2.new(100, 100), Enum.KeyCode.RightShift)
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
--- Вкладка MAIN
-local Main = Window:CreateTab("Main")
+local player = Players.LocalPlayer
 
-Main:CreateToggle("Dual Gun", function(state) -- дублирует оружие
-    game.Players.LocalPlayer.Character:FindFirstChild("Gun").Gun:Clone()
-end)
+-- ScreenGui
+local gui = Instance.new("ScreenGui")
+gui.Name = "ThunderHubUI"
+gui.Parent = player.PlayerGui
+gui.ResetOnSpawn = false
 
-Main:CreateToggle("Dual Knife", function(state)
-    game.Players.LocalPlayer.Character:FindFirstChild("Knife"):Clone()
-end)
 
-Main:CreateToggle("Fake Bomb", function(state)
-    -- спавнит фейковую бомбу с таймером (визуал)
-    local bomb = Instance.new("Part")
-    bomb.Size = Vector3.new(2,2,2)
-    bomb.Position = game.Players.LocalPlayer.Character.HumanoidRootPart.Position + Vector3.new(0,3,0)
-    bomb.BrickColor = BrickColor.Red()
-    bomb.Anchored = true
-    bomb.CanCollide = false
-    game:GetService("Debris"):AddItem(bomb, 5)
-end)
+-- Main Window
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0,600,0,380)
+main.Position = UDim2.new(0.5,-300,0.5,-190)
+main.BackgroundColor3 = Color3.fromRGB(18,18,22)
+main.BorderSizePixel = 0
+main.Parent = gui
 
-Main:CreateDropdown("Crosshair Changer", {"Dot", "Cross", "Circle"}, function(sel)
-    -- меняет текстуру прицела
-    game.Players.LocalPlayer.PlayerGui.Crosshair.Image = sel
-end)
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0,10)
+corner.Parent = main
 
-Main:CreateToggle("Godmode", function(state)
-    game.Players.LocalPlayer.Character.Humanoid.Health = math.huge
-    game.Players.LocalPlayer.Character.Humanoid.MaxHealth = math.huge
-end)
 
-Main:CreateToggle("Touch Fling", function(state)
-    -- при касании кидает игроков
-    local char = game.Players.LocalPlayer.Character
-    char.Touched:Connect(function(hit)
-        if hit.Parent and hit.Parent:FindFirstChild("Humanoid") then
-            hit.Parent.HumanoidRootPart.Velocity = Vector3.new(0, 150, 0)
-        end
-    end)
-end)
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,35)
+title.BackgroundTransparency = 1
+title.Text = "Thunder Hub | Custom"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.Parent = main
 
-Main:CreateToggle("Anti Fling", function(state)
-    game.Players.LocalPlayer.Character.HumanoidRootPart.Velocity = Vector3.new(0,0,0)
-end)
 
-Main:CreateToggle("Invisible Character", function(state)
-    game.Players.LocalPlayer.Character.HumanoidRootPart.Transparency = 1
-end)
+-- Tabs
+local tabs = Instance.new("Frame")
+tabs.Size = UDim2.new(0,150,1,-35)
+tabs.Position = UDim2.new(0,0,0,35)
+tabs.BackgroundColor3 = Color3.fromRGB(14,14,18)
+tabs.Parent = main
 
--- Вкладка FLING
-local FlingTab = Window:CreateTab("Fling")
 
-FlingTab:CreateButton("Fling Murderer", function()
-    local murderer = getMurderer() -- функция поиска
-    if murderer then murderer.HumanoidRootPart.Velocity = Vector3.new(0, 500, 0) end
-end)
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1,-160,1,-45)
+content.Position = UDim2.new(0,160,0,45)
+content.BackgroundTransparency = 1
+content.Parent = main
 
-FlingTab:CreateButton("Fling Sheriff", function()
-    local sheriff = getSheriff()
-    if sheriff then sheriff.HumanoidRootPart.Velocity = Vector3.new(0, 500, 0) end
-end)
 
-local playerList = {}
-FlingTab:CreateDropdown("Select Player to Fling", playerList, function(plr)
-    selectedTarget = plr
-end)
 
-FlingTab:CreateButton("Refresh Player List", function()
-    playerList = {}
-    for _, v in pairs(game.Players:GetPlayers()) do
-        table.insert(playerList, v.Name)
-    end
-end)
+local function createButton(text,y,callback)
 
-FlingTab:CreateButton("Fling Selected", function()
-    if selectedTarget then
-        game.Players[selectedTarget].Character.HumanoidRootPart.Velocity = Vector3.new(0, 500, 0)
-    end
-end)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(0.9,0,0,35)
+	b.Position = UDim2.new(0.05,0,0,y)
+	b.BackgroundColor3 = Color3.fromRGB(35,35,42)
+	b.Text = text
+	b.TextColor3 = Color3.new(1,1,1)
+	b.Font = Enum.Font.Gotham
+	b.TextSize = 14
+	b.Parent = content
 
--- Вкладка GUN
-local GunTab = Window:CreateTab("Gun")
+	local c = Instance.new("UICorner")
+	c.Parent=b
 
-GunTab:CreateButton("Steal Gun", function()
-    local gun = workspace:FindFirstChild("Gun")
-    if gun then gun.Parent = game.Players.LocalPlayer.Backpack end
-end)
+	b.MouseButton1Click:Connect(callback)
 
-GunTab:CreateButton("Grab Gun (auto)", function()
-    while wait(0.1) do
-        local gun = workspace:FindFirstChild("Gun")
-        if gun then gun.Parent = game.Players.LocalPlayer.Backpack end
-    end
-end)
-
-GunTab:CreateToggle("Auto Grab Gun", function(state) autoGrab = state end)
-
--- Вкладка KNIFE
-local KnifeTab = Window:CreateTab("Knife")
-
-KnifeTab:CreateToggle("Auto Knife Throw", function(state)
-    while state and wait(0.3) do
-        game:GetService("ReplicatedStorage").ThrowKnife:FireServer()
-    end
-end)
-
-KnifeTab:CreateSlider("Throw Range", 10, 100, 50, function(val)
-    getgenv().knifeRange = val
-end)
-
-KnifeTab:CreateToggle("Knife Aura", function(state)
-    -- создаёт зону поражения
-    local aura = Instance.new("Part")
-aura.Size = Vector3.new(knifeRange, knifeRange, knifeRange)
-    aura.Position = game.Players.LocalPlayer.Character.HumanoidRootPart.Position
-    aura.Anchored = true
-    aura.CanCollide = false
-    aura.Touched:Connect(function(h) 
-        if h.Parent and h.Parent:FindFirstChild("Humanoid") then 
-            h.Parent.Humanoid.Health = 0 
-        end 
-    end)
-end)
-
--- Вкладка AIM
-local AimTab = Window:CreateTab("Aim")
-
-AimTab:CreateToggle("Silent Aim", function(state) silentAim = state end)
-AimTab:CreateSlider("Prediction", 0, 100, 50, function(val) pred = val/100 end)
-AimTab:CreateToggle("Wall Bang", function(state) wallBang = state end)
-
-AimTab:CreateToggle("Auto Shoot Murder", function(state)
-    while state and wait(0.5) do
-        local target = getMurderer()
-        if target then
-            game:GetService("ReplicatedStorage").Shoot:FireServer(target.HumanoidRootPart.Position)
-        end
-    end
-end)
-
-AimTab:CreateSlider("Auto Shoot Delay", 0.1, 2, 0.5, function(val) shootDelay = val end)
-
--- Вкладка BUTTONS (плавающие кнопки)
-local ButtonsTab = Window:CreateTab("Buttons")
-ButtonsTab:CreateButton("Shoot Murder", function() 
-    local m = getMurderer()
-    if m then game:GetService("ReplicatedStorage").Shoot:FireServer(m.HumanoidRootPart.Position) end
-end)
-ButtonsTab:CreateButton("Throw Knife", function() game:GetService("ReplicatedStorage").ThrowKnife:FireServer() end)
-ButtonsTab:CreateButton("Kill All", function()
-    for _, p in pairs(game.Players:GetPlayers()) do
-        if p.Character then p.Character.Humanoid.Health = 0 end
-    end
-end)
-ButtonsTab:CreateButton("Be Invisible", function()
-    game.Players.LocalPlayer.Character.HumanoidRootPart.Transparency = 1
-end)
-ButtonsTab:CreateButton("Camlock", function()
-    -- привязывает камеру к цели
-    local target = getMurderer()
-    if target then workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, target.HumanoidRootPart.Position) end
-end)
-ButtonsTab:CreateButton("SPD Glitch", function() -- разгон
-    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 250
-end)
-ButtonsTab:CreateButton("Wallhop Off", function()
-    game.Players.LocalPlayer.Character.Humanoid.JumpPower = 0
-end)
-
--- Вкладка SPEED
-local SpeedTab = Window:CreateTab("Speed")
-SpeedTab:CreateToggle("Speed Glitch", function(state)
-    if state then
-        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 250
-    else
-        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
-    end
-end)
-SpeedTab:CreateSlider("Adjust Speed", 16, 500, 100, function(val)
-    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = val
-end)
-
--- Вкладка TELEPORT
-local TeleTab = Window:CreateTab("Teleport")
-TeleTab:CreateButton("To Map", function() game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = workspace.Map.Center end)
-TeleTab:CreateButton("To Lobby", function() game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(0, 50, 0) end)
-TeleTab:CreateButton("To Murderer", function() 
-    local m = getMurderer()
-    if m then game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = m.HumanoidRootPart.CFrame end
-end)
-TeleTab:CreateButton("To Sheriff", function()
-    local s = getSheriff()
-    if s then game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = s.HumanoidRootPart.CFrame end
-end)
-
--- Вкладка ESP
-local EspTab = Window:CreateTab("ESP")
-EspTab:CreateToggle("ESP Everyone", function(state)
-    for _, p in pairs(game.Players:GetPlayers()) do
-        createESP(p, state)
-    end
-end)
-EspTab:CreateToggle("Murderer Only", function(state)
-    local m = getMurderer()
-    if m then createESP(m, state) end
-end)
-EspTab:CreateToggle("Sheriff Only", function(state)
-    local s = getSheriff()
-    if s then createESP(s, state) end
-end)
-EspTab:CreateToggle("Innocent Only", function(state)
-    for _, p in pairs(game.Players:GetPlayers()) do
-        if p ~= getMurderer() and p ~= getSheriff() then createESP(p, state) end
-    end
-end)
-EspTab:CreateToggle("ESP Gun", function(state)
-    local g = workspace:FindFirstChild("Gun")
-    if g then createESP(g, state) end
-end)
-
--- Вкладка NOTIFY
-local NotifyTab = Window:CreateTab("Notify")
-NotifyTab:CreateToggle("Instant Role Notify", function(state)
-    game:GetService("ReplicatedStorage").RoleAssigned.OnClientEvent:Connect(function(role)
-        if state then print("Your role: " .. role) end
-    end)
-end)
-NotifyTab:CreateToggle("Gun Drop Notifier", function(state)
-    workspace.Gun.Dropped:Connect(function() if state then print("Gun dropped!") end end)
-end)
-
--- Вкладка INFO
-local InfoTab = Window:CreateTab("Info")
-InfoTab:CreateLabel("Round Timer")
-InfoTab:CreateLabel("Murder Percentage")
-InfoTab:CreateLabel("Role Display")
-
--- Вкладка TRACER
-local TracerTab = Window:CreateTab("Tracer")
-TracerTab:CreateToggle("Tracer Everyone", function(state) toggleTracer(state, "all") end)
-TracerTab:CreateToggle("Tracer Murderer", function(state) toggleTracer(state, "murderer") end)
-TracerTab:CreateToggle("Tracer Sheriff", function(state) toggleTracer(state, "sheriff") end)
-TracerTab:CreateToggle("Tracer Innocent", function(state) toggleTracer(state, "innocent") end)
-
--- Вкладка FARM
-local FarmTab = Window:CreateTab("Farm")
-FarmTab:CreateToggle("Auto Farm", function(state)
-    while state and wait(0.5) do
-        -- автоматический сбор очков (имитация)
-        game:GetService("ReplicatedStorage").Farm:FireServer()
-    end
-end)
-
--- Вкладка MOVEMENT
-local MoveTab = Window:CreateTab("Movement")
-MoveTab:CreateToggle("Infinite Jump", function(state)
-    game.Players.LocalPlayer.Character.Humanoid.JumpPower = state and 999 or 50
-end)
-MoveTab:CreateToggle("No Clip", function(state)
-    game.Players.LocalPlayer.Character.HumanoidRootPart.CanCollide = not state
-end)
-MoveTab:CreateSlider("WalkSpeed Manual", 16, 500, 100, function(val)
-    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = val
-end)
-MoveTab:CreateSlider("JumpPower Manual", 0, 999, 50, function(val)
-    game.Players.LocalPlayer.Character.Humanoid.JumpPower = val
-end)
-
--- Вкладка TROLL
-local TrollTab = Window:CreateTab("Troll")
-TrollTab:CreateDropdown("Target Player", {}, function(plr) trollTarget = plr end)
-TrollTab:CreateButton("Refresh Player List", function() -- обновить список для троллинга
-    local list = {}
-    for _, v in pairs(game.Players:GetPlayers()) do table.insert(list, v.Name) end
-    TrollTab:RefreshDropdown(list)
-end)
-TrollTab:CreateButton("Force Jump", function()
-    if trollTarget and game.Players[trollTarget].Character then
-        game.Players[trollTarget].Character.Humanoid.Jump = true
-    end
-end)
-TrollTab:CreateButton("Rocket Fling", function()
-    if trollTarget and game.Players[trollTarget].Character then
-        game.Players[trollTarget].Character.HumanoidRootPart.Velocity = Vector3.new(0, 1000, 0)
-    end
-end)
-TrollTab:CreateButton("Slam", function()
-    if trollTarget and game.Players[trollTarget].Character then
-        game.Players[trollTarget].Character.HumanoidRootPart.Velocity = Vector3.new(0, -500, 0)
-    end
-end)
-
--- Вспомогательные функции (заглушки)
-function getMurderer()
-    for _, p in pairs(game.Players:GetPlayers()) do
-        if p.Character and p.Character:FindFirstChild("MurdererTag") then return p.Character end
-    end
+	return b
 end
 
-function getSheriff()
-    for _, p in pairs(game.Players:GetPlayers()) do
-        if p.Character and p.Character:FindFirstChild("SheriffTag") then return p.Character end
-    end
+
+local function toggle(text,y)
+
+	local state=false
+
+	local b=createButton(text.." : OFF",y,function()
+
+		state=not state
+
+		if state then
+			b.Text=text.." : ON"
+			b.BackgroundColor3=Color3.fromRGB(0,170,100)
+		else
+			b.Text=text.." : OFF"
+			b.BackgroundColor3=Color3.fromRGB(35,35,42)
+		end
+
+	end)
+
 end
 
-function createESP(obj, state)
-    -- рисует bounding box или текст над головой
+
+-- Left menu
+
+local categories={
+	"Character",
+	"Visual",
+	"Players",
+	"Teleport",
+	"Settings"
+}
+
+
+for i,v in ipairs(categories) do
+
+	local b=Instance.new("TextButton")
+
+	b.Size=UDim2.new(0.9,0,0,35)
+	b.Position=UDim2.new(0.05,0,0,(i-1)*45+10)
+
+	b.Text=v
+	b.BackgroundColor3=Color3.fromRGB(35,35,42)
+	b.TextColor3=Color3.new(1,1,1)
+
+	b.Font=Enum.Font.Gotham
+	b.TextSize=14
+
+	b.Parent=tabs
+
+
+	local c=Instance.new("UICorner")
+	c.Parent=b
+
 end
 
-function toggleTracer(state, type)
-    -- линии от камеры к цели
-end
+
+
+-- Example options
+
+toggle("Infinite Jump",20)
+toggle("No Clip",65)
+toggle("Custom Speed",110)
+toggle("Custom Jump Power",155)
+
+createButton("Refresh Player List",210,function()
+	print("Player list refreshed")
+end)
+
+
+createButton("Teleport Spawn",255,function()
+	print("Teleport example")
+end)
+
+
+
+-- Open / Close menu
+
+main.Visible=true
+
+UserInputService.InputBegan:Connect(function(key,gp)
+
+	if gp then return end
+
+	if key.KeyCode==Enum.KeyCode.RightShift then
+
+		main.Visible=not main.Visible
+
+	end
+
+end)
