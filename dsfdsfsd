@@ -1,19 +1,18 @@
--- MM2 ULTRA STANDALONE [FIXED] by Ryzen
+-- MM2 DIAGNOSTIC + FIX by Ryzen
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local UserInputService = game:GetService("UserInputService")
 
--- Создаём GUI
+-- СОЗДАЁМ МЕНЮ
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "PulseHub"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 280, 0, 380)
+MainFrame.Size = UDim2.new(0, 300, 0, 420)
 MainFrame.Position = UDim2.new(0, 10, 0, 10)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-MainFrame.BackgroundTransparency = 0.15
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+MainFrame.BackgroundTransparency = 0.1
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -21,20 +20,80 @@ MainFrame.Parent = ScreenGui
 
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 35)
-Title.Text = "Pulse Hub MM2"
+Title.Text = "Pulse MM2 [DIAG]"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.BackgroundTransparency = 1
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 18
 Title.Parent = MainFrame
 
-local function createButton(text, yPos, color, callback)
+-- ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ РОЛИ (АДАПТИВНАЯ)
+local function getPlayerRole(plr)
+    -- Проверяем все возможные места хранения роли
+    if plr:FindFirstChild("role") then
+        return plr.role.Value
+    elseif plr:FindFirstChild("Role") then
+        return plr.Role.Value
+    elseif plr:FindFirstChild("PlayerRole") then
+        return plr.PlayerRole.Value
+    elseif plr:FindFirstChild("Team") then
+        return plr.Team.Name
+    elseif plr.Character and plr.Character:FindFirstChild("Humanoid") then
+        -- Некоторые игры хранят роль в Humanoid
+        local hum = plr.Character.Humanoid
+        if hum:FindFirstChild("Role") then
+            return hum.Role.Value
+        end
+    end
+    return nil
+end
+
+-- ФУНКЦИЯ ПОДСВЕТКИ (ЧЕРЕЗ БИЛДЕР)
+local function highlightPlayer(plr, color, duration)
+    if not plr or not plr.Character then return end
+    local hl = Instance.new("Highlight")
+    hl.Parent = plr.Character
+    hl.FillColor = color
+    hl.OutlineColor = Color3.fromRGB(255,255,255)
+    hl.Enabled = true
+    task.delay(duration or 3, function()
+        pcall(function() hl:Destroy() end)
+    end)
+end
+
+-- ФУНКЦИЯ ПОИСКА ПО РОЛИ
+local function findAndHighlight(roleName, color)
+    local found = false
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local role = getPlayerRole(plr)
+            if role and string.lower(role) == string.lower(roleName) then
+                highlightPlayer(plr, color, 4)
+                found = true
+                print("✅ Найден "..roleName..": "..plr.Name)
+            end
+        end
+    end
+    if not found then
+        print("❌ "..roleName.." не найден. Возможно, роли называются иначе.")
+        print("📋 Список ролей в игре:")
+        for _, plr in pairs(Players:GetPlayers()) do
+            local r = getPlayerRole(plr)
+            if r then
+                print("   "..plr.Name.." → "..r)
+            end
+        end
+    end
+end
+
+-- СОЗДАНИЕ КНОПОК
+local function createBtn(text, y, color, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.85, 0, 0, 32)
-    btn.Position = UDim2.new(0.075, 0, yPos, 0)
+    btn.Position = UDim2.new(0.075, 0, y, 0)
     btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.BackgroundColor3 = color or Color3.fromRGB(50, 50, 60)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.BackgroundColor3 = color or Color3.fromRGB(50,50,60)
     btn.BorderSizePixel = 0
     btn.Font = Enum.Font.Gotham
     btn.TextSize = 14
@@ -43,59 +102,28 @@ local function createButton(text, yPos, color, callback)
     return btn
 end
 
--- Переменные состояний
+createBtn("🔵  Шериф", 0.15, Color3.fromRGB(0,150,255), function()
+    findAndHighlight("Sheriff", Color3.fromRGB(0,255,255))
+end)
+
+createBtn("🔴  Убийца", 0.28, Color3.fromRGB(200,40,40), function()
+    findAndHighlight("Murderer", Color3.fromRGB(255,50,50))
+end)
+
+createBtn("🟢  Невинные", 0.41, Color3.fromRGB(40,200,40), function()
+    findAndHighlight("Innocent", Color3.fromRGB(0,255,100))
+end)
+
+-- X-RAY
 local xrayActive = false
-local espActive = false
-local espHighlights = {}
-
--- Очистка подсветок
-local function clearHighlights()
-    for _, h in pairs(espHighlights) do
-        pcall(function() h:Destroy() end)
-    end
-    espHighlights = {}
-end
-
--- Подсветка роли
-local function highlightRole(roleName, color, duration)
-    clearHighlights()
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr:FindFirstChild("role") and plr.role.Value == roleName then
-            if plr.Character then
-                local hl = Instance.new("Highlight")
-                hl.Parent = plr.Character
-                hl.FillColor = color
-                hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                hl.Enabled = true
-                table.insert(espHighlights, hl)
-            end
-        end
-    end
-    if duration then
-        task.delay(duration, clearHighlights)
-    end
-end
-
--- Кнопки
-createButton("🔍 Показать Шерифа", 0.15, Color3.fromRGB(0, 180, 255), function()
-    highlightRole("Sheriff", Color3.fromRGB(0, 255, 255), 4)
-end)
-
-createButton("🔴  Показать Убийцу", 0.28, Color3.fromRGB(200, 40, 40), function()
-    highlightRole("Murderer", Color3.fromRGB(255, 50, 50), 4)
-end)
-
-createButton("🟢  Показать Невинных", 0.41, Color3.fromRGB(40, 200, 40), function()
-    highlightRole("Innocent", Color3.fromRGB(0, 255, 100), 4)
-end)
-
-local xrayBtn = createButton("👁️  X-Ray: ВЫКЛ", 0.54, Color3.fromRGB(60, 60, 80), function()
+local xrayBtn = createBtn("👁️  X-Ray: ВЫКЛ", 0.54, Color3.fromRGB(60,60,80), function()
     xrayActive = not xrayActive
     xrayBtn.Text = xrayActive and "👁️  X-Ray: ВКЛ" or "👁️  X-Ray: ВЫКЛ"
-    Camera.FieldOfView = xrayActive and 120 or 70
+Camera.FieldOfView = xrayActive and 120 or 70
 end)
 
-local afkBtn = createButton("💤  Anti-AFK", 0.67, Color3.fromRGB(60, 60, 80), function()
+-- ANTI-AFK
+local afkBtn = createBtn("💤  Anti-AFK", 0.67, Color3.fromRGB(60,60,80), function()
     LocalPlayer.Idled:Connect(function()
         local vu = game:GetService("VirtualUser")
         pcall(function()
@@ -105,22 +133,32 @@ local afkBtn = createButton("💤  Anti-AFK", 0.67, Color3.fromRGB(60, 60, 80), 
         end)
     end)
     afkBtn.Text = "✅ Anti-AFK ON"
-    afkBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 40)
+    afkBtn.BackgroundColor3 = Color3.fromRGB(40,180,40)
 end)
 
--- Кнопка закрытия
+-- ДИАГНОСТИЧЕСКАЯ КНОПКА
+createBtn("📋 ПОКАЗАТЬ ВСЕ РОЛИ", 0.80, Color3.fromRGB(100,100,120), function()
+    print("=== ВСЕ ИГРОКИ И ИХ РОЛИ ===")
+    for _, plr in pairs(Players:GetPlayers()) do
+        local r = getPlayerRole(plr)
+        print(plr.Name.." → "..(r or "РОЛЬ НЕ НАЙДЕНА"))
+    end
+end)
+
+-- КНОПКА ЗАКРЫТИЯ
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0, 25, 0, 25)
 closeBtn.Position = UDim2.new(1, -30, 0, 5)
 closeBtn.Text = "✕"
-closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+closeBtn.BackgroundColor3 = Color3.fromRGB(200,40,40)
 closeBtn.BorderSizePixel = 0
 closeBtn.Font = Enum.Font.GothamBold
 closeBtn.TextSize = 14
 closeBtn.Parent = MainFrame
-  closeBtn.MouseButton1Click:Connect(function()
+closeBtn.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
-print("✅ MM2 Hub успешно загружен! Меню в левом верхнем углу.")
+print("✅ MM2 Diagnostic загружен!")
+print("Нажми кнопку [ПОКАЗАТЬ ВСЕ РОЛИ], чтобы узнать, как игра хранит роли.")
