@@ -1,18 +1,19 @@
 --[[
-    РАБОЧИЙ FLY + NOCLIP ДЛЯ ROBLOX
-    Управление:
-    F = Вкл/Выкл полёт
-    V = Вкл/Выкл noclip
-    Пробел = Вверх (в полёте)
-    Shift = Вниз (в полёте)
-    WASD = Движение
+    FLY + NOCLIP GUI by FlozeXX
+    Полностью рабочий скрипт с красивым интерфейсом
 ]]
 
--- Проверка, что скрипт выполняется в локальном игроке
 local player = game.Players.LocalPlayer
-if not player then return end
+local userInputService = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
+local tweenService = game:GetService("TweenService")
 
-local character = player.Character or player.CharacterAdded:Wait()
+-- Проверка персонажа
+local function getCharacter()
+    return player.Character or player.CharacterAdded:Wait()
+end
+
+local character = getCharacter()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
@@ -22,8 +23,259 @@ local noclipEnabled = false
 local speed = 50
 local bodyVelocity = nil
 local bodyGyro = nil
+local noclipConnections = {}
+local flyConnection = nil
 
--- Функция для создания Velocity и Gyro
+-- СОЗДАНИЕ GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FlozeXX_GUI"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Главная панель
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 320, 0, 450)
+mainFrame.Position = UDim2.new(0.5, -160, 0.5, -225)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+-- Размытие фона (эффект стекла)
+local blurEffect = Instance.new("BlurEffect")
+blurEffect.Size = 10
+blurEffect.Parent = mainFrame
+
+-- Затенение
+local shadow = Instance.new("Frame")
+shadow.Name = "Shadow"
+shadow.Size = UDim2.new(1, 20, 1, 20)
+shadow.Position = UDim2.new(0, -10, 0, -10)
+shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+shadow.BackgroundTransparency = 0.5
+shadow.BorderSizePixel = 0
+shadow.Parent = mainFrame
+
+-- Основная панель с прозрачностью
+local glassFrame = Instance.new("Frame")
+glassFrame.Name = "GlassFrame"
+glassFrame.Size = UDim2.new(1, 0, 1, 0)
+glassFrame.Position = UDim2.new(0, 0, 0, 0)
+glassFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+glassFrame.BackgroundTransparency = 0.15
+glassFrame.BorderSizePixel = 1
+glassFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+glassFrame.BorderTransparency = 0.7
+glassFrame.Parent = mainFrame
+
+-- Заголовок
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Size = UDim2.new(1, 0, 0, 50)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "✦ FLOZEXX ✦"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = glassFrame
+
+-- Подзаголовок
+local subTitle = Instance.new("TextLabel")
+subTitle.Name = "SubTitle"
+subTitle.Size = UDim2.new(1, 0, 0, 20)
+subTitle.Position = UDim2.new(0, 0, 0, 40)
+subTitle.BackgroundTransparency = 1
+subTitle.Text = "FLY + NOCLIP CONTROLLER"
+subTitle.TextColor3 = Color3.fromRGB(180, 180, 200)
+subTitle.TextScaled = true
+subTitle.Font = Enum.Font.Gotham
+subTitle.Parent = glassFrame
+
+-- Разделитель
+local divider = Instance.new("Frame")
+divider.Name = "Divider"
+divider.Size = UDim2.new(0.8, 0, 0, 1)
+divider.Position = UDim2.new(0.1, 0, 0, 70)
+divider.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+divider.BackgroundTransparency = 0.5
+divider.Parent = glassFrame
+
+-- ФУНКЦИЯ СОЗДАНИЯ КНОПКИ
+local function createButton(name, text, yPos, color)
+    local button = Instance.new("Frame")
+    button.Name = name
+    button.Size = UDim2.new(0.85, 0, 0, 55)
+    button.Position = UDim2.new(0.075, 0, 0, yPos)
+    button.BackgroundColor3 = color or Color3.fromRGB(60, 60, 80)
+    button.BackgroundTransparency = 0.3
+    button.BorderSizePixel = 1
+    button.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    button.BorderTransparency = 0.6
+    button.Parent = glassFrame
+    
+    -- Эффект наведения
+    local hoverEffect = Instance.new("UICorner")
+    hoverEffect.CornerRadius = UDim.new(0, 8)
+    hoverEffect.Parent = button
+    
+    local buttonLabel = Instance.new("TextLabel")
+    buttonLabel.Name = "ButtonLabel"
+    buttonLabel.Size = UDim2.new(1, 0, 1, 0)
+    buttonLabel.Position = UDim2.new(0, 0, 0, 0)
+    buttonLabel.BackgroundTransparency = 1
+    buttonLabel.Text = text
+    buttonLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    buttonLabel.TextScaled = true
+    buttonLabel.Font = Enum.Font.GothamBold
+    buttonLabel.Parent = button
+    
+    -- Статус (ON/OFF)
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Name = "StatusLabel"
+    statusLabel.Size = UDim2.new(0.3, 0, 1, 0)
+    statusLabel.Position = UDim2.new(0.7, 0, 0, 0)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Text = "OFF"
+    statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    statusLabel.TextScaled = true
+    statusLabel.Font = Enum.Font.GothamBold
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Right
+    statusLabel.Parent = button
+    
+    -- Анимация при наведении
+    button.MouseEnter:Connect(function()
+        tweenService:Create(button, TweenInfo.new(0.2), {BackgroundTransparency = 0.1}):Play()
+        tweenService:Create(button, TweenInfo.new(0.2), {BorderTransparency = 0.3}):Play()
+    end)
+    
+    button.MouseLeave:Connect(function()
+        tweenService:Create(button, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play()
+        tweenService:Create(button, TweenInfo.new(0.2), {BorderTransparency = 0.6}):Play()
+    end)
+    
+    return button, statusLabel
+end
+
+-- Кнопка Fly
+local flyButton, flyStatus = createButton("FlyButton", "✈ FLY", 90, Color3.fromRGB(40, 80, 120))
+
+-- Кнопка Noclip
+local noclipButton, noclipStatus = createButton("NoclipButton", "👻 NOCLIP", 160, Color3.fromRGB(120, 40, 80))
+
+-- Ползунок скорости
+local speedFrame = Instance.new("Frame")
+speedFrame.Name = "SpeedFrame"
+speedFrame.Size = UDim2.new(0.85, 0, 0, 50)
+speedFrame.Position = UDim2.new(0.075, 0, 0, 230)
+speedFrame.BackgroundTransparency = 1
+speedFrame.Parent = glassFrame
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Name = "SpeedLabel"
+speedLabel.Size = UDim2.new(0.5, 0, 0, 25)
+speedLabel.Position = UDim2.new(0, 0, 0, 0)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "⚡ Speed: 50"
+speedLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
+speedLabel.TextScaled = true
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.TextXAlignment = Enum.TextXAlignment.Left
+speedLabel.Parent = speedFrame
+
+local speedSlider = Instance.new("Frame")
+speedSlider.Name = "SpeedSlider"
+speedSlider.Size = UDim2.new(0.7, 0, 0, 6)
+speedSlider.Position = UDim2.new(0, 0, 0, 30)
+speedSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+speedSlider.BackgroundTransparency = 0.5
+speedSlider.BorderSizePixel = 1
+speedSlider.BorderColor3 = Color3.fromRGB(255, 255, 255)
+speedSlider.BorderTransparency = 0.7
+speedSlider.Parent = speedFrame
+
+local sliderFill = Instance.new("Frame")
+sliderFill.Name = "SliderFill"
+sliderFill.Size = UDim2.new(0.5, 0, 1, 0)
+sliderFill.Position = UDim2.new(0, 0, 0, 0)
+sliderFill.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+sliderFill.BorderSizePixel = 0
+sliderFill.Parent = speedSlider
+
+local sliderButton = Instance.new("Frame")
+sliderButton.Name = "SliderButton"
+sliderButton.Size = UDim2.new(0, 20, 0, 20)
+sliderButton.Position = UDim2.new(0.5, -10, 0.5, -10)
+sliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+sliderButton.BorderSizePixel = 0
+sliderButton.Parent = speedSlider
+
+local sliderCorner = Instance.new("UICorner")
+sliderCorner.CornerRadius = UDim.new(1, 0)
+sliderCorner.Parent = sliderButton
+
+-- Ползунок скорости
+local dragging = false
+local sliderCorner2 = Instance.new("UICorner")
+sliderCorner2.CornerRadius = UDim.new(0, 3)
+sliderCorner2.Parent = speedSlider
+
+sliderButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+    end
+end)
+
+sliderButton.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+userInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local absPos = input.Position.X
+        local framePos = speedSlider.AbsolutePosition.X
+        local frameSize = speedSlider.AbsoluteSize.X
+        
+        local percent = math.clamp((absPos - framePos) / frameSize, 0, 1)
+        speed = math.floor(10 + percent * 90) -- от 10 до 100
+        
+        sliderFill.Size = UDim2.new(percent, 0, 1, 0)
+        sliderButton.Position = UDim2.new(percent, -10, 0.5, -10)
+        speedLabel.Text = "⚡ Speed: " .. speed
+    end
+end)
+
+-- Информация
+local infoLabel = Instance.new("TextLabel")
+infoLabel.Name = "InfoLabel"
+infoLabel.Size = UDim2.new(0.9, 0, 0, 40)
+infoLabel.Position = UDim2.new(0.05, 0, 0, 300)
+infoLabel.BackgroundTransparency = 1
+infoLabel.Text = "Hotkeys: [F] Fly | [V] Noclip"
+infoLabel.TextColor3 = Color3.fromRGB(150, 150, 180)
+infoLabel.TextScaled = true
+infoLabel.Font = Enum.Font.Gotham
+infoLabel.Parent = glassFrame
+
+-- Кнопка закрытия
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -40, 0, 10)
+closeButton.BackgroundTransparency = 1
+closeButton.Text = "✕"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextScaled = true
+closeButton.Font = Enum.Font.GothamBold
+closeButton.Parent = glassFrame
+
+closeButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- ФУНКЦИИ ПОЛЁТА
 local function createFlyObjects()
     if bodyVelocity then bodyVelocity:Destroy() end
     if bodyGyro then bodyGyro:Destroy() end
@@ -40,190 +292,198 @@ local function createFlyObjects()
     bodyGyro.Parent = rootPart
 end
 
--- Удаление объектов полёта
 local function destroyFlyObjects()
     if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
     if bodyGyro then bodyGyro:Destroy() bodyGyro = nil end
 end
 
--- Функция полёта (вызывается каждый кадр)
 local function flyUpdate()
     if not flying then return end
     if not bodyVelocity or not bodyGyro then
         createFlyObjects()
     end
     
-    -- Получаем направление камеры
     local camera = workspace.CurrentCamera
     local forward = camera.CFrame.LookVector
     local right = camera.CFrame.RightVector
     local up = camera.CFrame.UpVector
     
-    -- Ввод с клавиатуры
     local moveDirection = Vector3.new(0, 0, 0)
     
-    -- WASD
-    if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.W) then
+    if userInputService:IsKeyDown(Enum.KeyCode.W) then
         moveDirection = moveDirection + forward
     end
-    if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.S) then
+    if userInputService:IsKeyDown(Enum.KeyCode.S) then
         moveDirection = moveDirection - forward
     end
-    if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.A) then
+    if userInputService:IsKeyDown(Enum.KeyCode.A) then
         moveDirection = moveDirection - right
     end
-    if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.D) then
+    if userInputService:IsKeyDown(Enum.KeyCode.D) then
         moveDirection = moveDirection + right
     end
-    
-    -- Вверх/Вниз
-    if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.Space) then
+    if userInputService:IsKeyDown(Enum.KeyCode.Space) then
         moveDirection = moveDirection + up
     end
-    if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.LeftShift) then
+    if userInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
         moveDirection = moveDirection - up
     end
     
-    -- Нормализуем и применяем скорость
     if moveDirection.Magnitude > 0 then
         moveDirection = moveDirection.Unit * speed
     end
     
-    -- Обновляем Velocity
     bodyVelocity.Velocity = moveDirection
     
-    -- Поворачиваем персонажа в сторону движения
     if moveDirection.Magnitude > 0.1 then
         bodyGyro.CFrame = CFrame.new(rootPart.Position, rootPart.Position + moveDirection)
     else
-        bodyGyro.CFrame = camera.CFrame * CFrame.new(0, 0, -1)
+        bodyGyro.CFrame = camera.CFrame
     end
 end
 
--- Включение полёта
-local function startFly()
-    if flying then return end
-    flying = true
+function toggleFly()
+    flying = not flying
     
-    -- Отключаем гравитацию
-    humanoid.PlatformStand = true
-    
-    -- Создаём объекты для полёта
-    createFlyObjects()
-    
-    -- Запускаем обновление
-    game:GetService("RunService").RenderStepped:Connect(flyUpdate)
-    
-    print("🛫 Полёт ВКЛЮЧЁН")
-end
-
--- Выключение полёта
-local function stopFly()
-    if not flying then return end
-    flying = false
-    
-    -- Включаем гравитацию обратно
-    humanoid.PlatformStand = false
-    
-    -- Удаляем объекты
-    destroyFlyObjects()
-    
-    print("🛬 Полёт ВЫКЛЮЧЁН")
-end
-
--- Переключение полёта
-local function toggleFly()
     if flying then
-        stopFly()
+        humanoid.PlatformStand = true
+        createFlyObjects()
+        if flyConnection then flyConnection:Disconnect() end
+        flyConnection = runService.RenderStepped:Connect(flyUpdate)
+        flyButton.BackgroundColor3 = Color3.fromRGB(60, 200, 100)
+        flyStatus.Text = "ON"
+        flyStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
+        flyButton.BorderColor3 = Color3.fromRGB(100, 255, 100)
     else
-        startFly()
+        humanoid.PlatformStand = false
+        destroyFlyObjects()
+        if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+        flyButton.BackgroundColor3 = Color3.fromRGB(40, 80, 120)
+        flyStatus.Text = "OFF"
+        flyStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+        flyButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
     end
 end
 
--- Noclip функция
-local function toggleNoclip()
+-- ФУНКЦИИ NOCLIP (РАБОЧАЯ ВЕРСИЯ)
+local function updateNoclip()
+    if not noclipEnabled then return end
+    
+    -- Отключаем коллизии у всех частей персонажа
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") and part.CanCollide ~= false then
+            part.CanCollide = false
+        end
+    end
+end
+
+function toggleNoclip()
     noclipEnabled = not noclipEnabled
     
     if noclipEnabled then
-        -- Включаем noclip
-        for _, part in ipairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
+        -- Отключаем коллизии
+        updateNoclip()
         
-        -- Отключаем коллизии для новых частей
+        -- Следим за новыми частями
         character.DescendantAdded:Connect(function(part)
             if noclipEnabled and part:IsA("BasePart") then
                 part.CanCollide = false
             end
         end)
         
-        print("👻 Noclip ВКЛЮЧЁН")
+        -- Обновляем каждый кадр для надёжности
+        if #noclipConnections == 0 then
+            local conn = runService.RenderStepped:Connect(updateNoclip)
+            table.insert(noclipConnections, conn)
+        end
+        
+        noclipButton.BackgroundColor3 = Color3.fromRGB(200, 60, 100)
+        noclipStatus.Text = "ON"
+        noclipStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+        noclipButton.BorderColor3 = Color3.fromRGB(255, 100, 100)
     else
-        -- Выключаем noclip
+        -- Включаем коллизии обратно
         for _, part in ipairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = true
             end
         end
-        print("🔒 Noclip ВЫКЛЮЧЁН")
+        
+        -- Отключаем все соединения
+        for _, conn in ipairs(noclipConnections) do
+            conn:Disconnect()
+        end
+        noclipConnections = {}
+        
+        noclipButton.BackgroundColor3 = Color3.fromRGB(120, 40, 80)
+        noclipStatus.Text = "OFF"
+        noclipStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+        noclipButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
     end
 end
 
--- Обработка нажатий клавиш
-game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+-- ОБРАБОТЧИКИ КНОПОК
+flyButton.MouseButton1Click:Connect(toggleFly)
+noclipButton.MouseButton1Click:Connect(toggleNoclip)
+
+-- ГОРЯЧИЕ КЛАВИШИ
+userInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
-    -- F - полёт
     if input.KeyCode == Enum.KeyCode.F then
         toggleFly()
     end
     
-    -- V - noclip
     if input.KeyCode == Enum.KeyCode.V then
         toggleNoclip()
     end
 end)
 
--- Очистка при смерти персонажа
+-- ПЕРЕРОЖДЕНИЕ ПЕРСОНАЖА
 player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
     rootPart = character:WaitForChild("HumanoidRootPart")
     humanoid = character:WaitForChild("Humanoid")
     
-    -- Сбрасываем состояние
     if flying then
-        stopFly()
+        flying = false
+        if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+        flyButton.BackgroundColor3 = Color3.fromRGB(40, 80, 120)
+        flyStatus.Text = "OFF"
+        flyStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+        flyButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
     end
     
-    -- Если noclip был включён, отключаем
     if noclipEnabled then
         noclipEnabled = false
-        for _, part in ipairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = true
-            end
+        for _, conn in ipairs(noclipConnections) do
+            conn:Disconnect()
         end
+        noclipConnections = {}
+        noclipButton.BackgroundColor3 = Color3.fromRGB(120, 40, 80)
+        noclipStatus.Text = "OFF"
+        noclipStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+        noclipButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
     end
 end)
 
--- Информация в консоль
+-- ИНФОРМАЦИЯ В КОНСОЛЬ
 print([[
-
-═══════════════════════════════════════
-  🚀 FLY + NOCLIP СКРИПТ ЗАГРУЖЕН!
-  
-  Управление:
-  [F] - Вкл/Выкл полёт
-  [V] - Вкл/Выкл noclip
-  
-  В полёте:
-  [WASD] - Движение
-  [Пробел] - Вверх
-  [Shift] - Вниз
-  
-  Скорость: 50 (можно изменить в коде)
-═══════════════════════════════════════
-
+╔═══════════════════════════════════════╗
+║       ✦ FLOZEXX SCRIPTS ✦            ║
+║                                       ║
+║   FLY + NOCLIP CONTROLLER LOADED!    ║
+║                                       ║
+║   [F] - Toggle Fly                   ║
+║   [V] - Toggle Noclip               ║
+║                                       ║
+║   GUI: Drag to move                  ║
+║   Speed: Adjust with slider          ║
+╚═══════════════════════════════════════╝
 ]])
+
+-- Анимация появления GUI
+mainFrame.BackgroundTransparency = 1
+tweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+    BackgroundTransparency = 0.1
+}):Play()
