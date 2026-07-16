@@ -1,9 +1,15 @@
 --[[
     FLY + NOCLIP by FlozeXX
-    ПРОСТАЯ РАБОЧАЯ ВЕРСИЯ
+    РАБОТАЕТ В ЛЮБОЙ ИГРЕ
 ]]
 
-local player = game.Players.LocalPlayer
+-- Ждем загрузки игрока
+local player = game:GetService("Players").LocalPlayer
+if not player then
+    game:GetService("Players").PlayerAdded:Wait()
+    player = game:GetService("Players").LocalPlayer
+end
+
 local userInputService = game:GetService("UserInputService")
 local runService = game:GetService("RunService")
 
@@ -16,56 +22,99 @@ local bodyGyro = nil
 local flyConn = nil
 local noclipConn = nil
 
--- Получаем персонажа
-local function getChar()
-    return player.Character or player.CharacterAdded:Wait()
+-- Функция получения персонажа
+local function getCharacter()
+    local char = player.Character
+    if not char or not char.Parent then
+        char = player.CharacterAdded:Wait()
+    end
+    return char
 end
 
-local char = getChar()
+local char = getCharacter()
 local hum = char:WaitForChild("Humanoid")
 local root = char:WaitForChild("HumanoidRootPart")
+
+-- Удаляем старый GUI
+if player.PlayerGui:FindFirstChild("FlozeXX_GUI") then
+    player.PlayerGui.FlozeXX_GUI:Destroy()
+end
 
 -- СОЗДАЕМ GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "FlozeXX_GUI"
 gui.Parent = player.PlayerGui
+gui.ResetOnSpawn = false
 
--- ФОН
+-- ФОН с эффектом стекла
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 250, 0, 300)
-frame.Position = UDim2.new(0.5, -125, 0.5, -150)
-frame.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
-frame.BackgroundTransparency = 0.1
+frame.Size = UDim2.new(0, 260, 0, 320)
+frame.Position = UDim2.new(0.5, -130, 0.5, -160)
+frame.BackgroundColor3 = Color3.fromRGB(15, 15, 30)
+frame.BackgroundTransparency = 0.05
 frame.BorderSizePixel = 2
-frame.BorderColor3 = Color3.fromRGB(100, 100, 255)
+frame.BorderColor3 = Color3.fromRGB(120, 120, 255)
 frame.Parent = gui
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
+corner.CornerRadius = UDim.new(0, 15)
 corner.Parent = frame
+
+-- Внутренняя панель
+local inner = Instance.new("Frame")
+inner.Size = UDim2.new(1, -4, 1, -4)
+inner.Position = UDim2.new(0, 2, 0, 2)
+inner.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
+inner.BackgroundTransparency = 0.3
+inner.BorderSizePixel = 0
+inner.Parent = frame
+
+local innerCorner = Instance.new("UICorner")
+innerCorner.CornerRadius = UDim.new(0, 13)
+innerCorner.Parent = inner
 
 -- ЗАГОЛОВОК
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 40)
+title.Size = UDim2.new(1, 0, 0, 45)
 title.Position = UDim2.new(0, 0, 0, 5)
 title.BackgroundTransparency = 1
 title.Text = "✦ FLOZEXX ✦"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextScaled = true
 title.Font = Enum.Font.GothamBold
-title.Parent = frame
+title.Parent = inner
+
+-- Подзаголовок
+local sub = Instance.new("TextLabel")
+sub.Size = UDim2.new(1, 0, 0, 18)
+sub.Position = UDim2.new(0, 0, 0, 42)
+sub.BackgroundTransparency = 1
+sub.Text = "FLY + NOCLIP"
+sub.TextColor3 = Color3.fromRGB(160, 160, 200)
+sub.TextScaled = true
+sub.Font = Enum.Font.Gotham
+sub.Parent = inner
+
+-- Разделитель
+local div = Instance.new("Frame")
+div.Size = UDim2.new(0.85, 0, 0, 1)
+div.Position = UDim2.new(0.075, 0, 0, 68)
+div.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+div.BackgroundTransparency = 0.5
+div.BorderSizePixel = 0
+div.Parent = inner
 
 -- КНОПКА FLY
 local flyBtn = Instance.new("TextButton")
-flyBtn.Size = UDim2.new(0.8, 0, 0, 45)
-flyBtn.Position = UDim2.new(0.1, 0, 0, 55)
+flyBtn.Size = UDim2.new(0.85, 0, 0, 45)
+flyBtn.Position = UDim2.new(0.075, 0, 0, 80)
 flyBtn.BackgroundColor3 = Color3.fromRGB(30, 80, 150)
 flyBtn.BorderSizePixel = 0
 flyBtn.Text = "✈ FLY: OFF"
 flyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 flyBtn.TextScaled = true
 flyBtn.Font = Enum.Font.GothamBold
-flyBtn.Parent = frame
+flyBtn.Parent = inner
 
 local flyCorner = Instance.new("UICorner")
 flyCorner.CornerRadius = UDim.new(0, 8)
@@ -73,15 +122,15 @@ flyCorner.Parent = flyBtn
 
 -- КНОПКА NOCLIP
 local noclipBtn = Instance.new("TextButton")
-noclipBtn.Size = UDim2.new(0.8, 0, 0, 45)
-noclipBtn.Position = UDim2.new(0.1, 0, 0, 110)
+noclipBtn.Size = UDim2.new(0.85, 0, 0, 45)
+noclipBtn.Position = UDim2.new(0.075, 0, 0, 135)
 noclipBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 80)
 noclipBtn.BorderSizePixel = 0
 noclipBtn.Text = "👻 NOCLIP: OFF"
 noclipBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 noclipBtn.TextScaled = true
 noclipBtn.Font = Enum.Font.GothamBold
-noclipBtn.Parent = frame
+noclipBtn.Parent = inner
 
 local noclipCorner = Instance.new("UICorner")
 noclipCorner.CornerRadius = UDim.new(0, 8)
@@ -90,21 +139,21 @@ noclipCorner.Parent = noclipBtn
 -- ПОЛЗУНОК СКОРОСТИ
 local speedLabel = Instance.new("TextLabel")
 speedLabel.Size = UDim2.new(0.8, 0, 0, 25)
-speedLabel.Position = UDim2.new(0.1, 0, 0, 170)
+speedLabel.Position = UDim2.new(0.1, 0, 0, 195)
 speedLabel.BackgroundTransparency = 1
 speedLabel.Text = "⚡ Speed: 50"
 speedLabel.TextColor3 = Color3.fromRGB(200, 200, 230)
 speedLabel.TextScaled = true
 speedLabel.Font = Enum.Font.Gotham
-speedLabel.Parent = frame
+speedLabel.Parent = inner
 
 local slider = Instance.new("Frame")
 slider.Size = UDim2.new(0.7, 0, 0, 6)
-slider.Position = UDim2.new(0.15, 0, 0, 200)
+slider.Position = UDim2.new(0.15, 0, 0, 225)
 slider.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
 slider.BorderSizePixel = 1
 slider.BorderColor3 = Color3.fromRGB(255, 255, 255)
-slider.Parent = frame
+slider.Parent = inner
 
 local sliderCorner = Instance.new("UICorner")
 sliderCorner.CornerRadius = UDim.new(0, 3)
@@ -121,8 +170,8 @@ fillCorner.CornerRadius = UDim.new(0, 3)
 fillCorner.Parent = fill
 
 local dot = Instance.new("Frame")
-dot.Size = UDim2.new(0, 16, 0, 16)
-dot.Position = UDim2.new(0.5, -8, 0.5, -8)
+dot.Size = UDim2.new(0, 18, 0, 18)
+dot.Position = UDim2.new(0.5, -9, 0.5, -9)
 dot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 dot.BorderSizePixel = 0
 dot.Parent = slider
@@ -134,24 +183,24 @@ dotCorner.Parent = dot
 -- ХОТКЕИ
 local hotkeys = Instance.new("TextLabel")
 hotkeys.Size = UDim2.new(0.9, 0, 0, 25)
-hotkeys.Position = UDim2.new(0.05, 0, 0, 220)
+hotkeys.Position = UDim2.new(0.05, 0, 0, 245)
 hotkeys.BackgroundTransparency = 1
 hotkeys.Text = "[F] Fly | [V] Noclip"
 hotkeys.TextColor3 = Color3.fromRGB(150, 150, 190)
 hotkeys.TextScaled = true
 hotkeys.Font = Enum.Font.Gotham
-hotkeys.Parent = frame
+hotkeys.Parent = inner
 
 -- ЗАКРЫТИЕ
 local close = Instance.new("TextButton")
 close.Size = UDim2.new(0, 30, 0, 30)
-close.Position = UDim2.new(1, -40, 0, 5)
+close.Position = UDim2.new(1, -38, 0, 8)
 close.BackgroundTransparency = 1
 close.Text = "✕"
 close.TextColor3 = Color3.fromRGB(255, 255, 255)
 close.TextScaled = true
 close.Font = Enum.Font.GothamBold
-close.Parent = frame
+close.Parent = inner
 
 close.MouseButton1Click:Connect(function()
     frame.Visible = not frame.Visible
@@ -212,7 +261,7 @@ userInputService.InputChanged:Connect(function(input)
             speed = math.floor(10 + percent * 90)
             
             fill.Size = UDim2.new(percent, 0, 1, 0)
-            dot.Position = UDim2.new(percent, -8, 0.5, -8)
+            dot.Position = UDim2.new(percent, -9, 0.5, -9)
             speedLabel.Text = "⚡ Speed: " .. speed
         end
     end
@@ -294,32 +343,36 @@ function toggleFly()
 end
 
 -- ФУНКЦИИ NOCLIP
+local function updateNoclip()
+    if not noclip then return end
+    if not char or not char.Parent then return end
+    
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") and part.CanCollide ~= false then
+            part.CanCollide = false
+        end
+    end
+end
+
 function toggleNoclip()
     noclip = not noclip
     
     if noclip then
-        -- Отключаем коллизии
-        for _, part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
+        updateNoclip()
         
-        -- Постоянно обновляем
         if noclipConn then noclipConn:Disconnect() end
-        noclipConn = runService.RenderStepped:Connect(function()
-            if not noclip then return end
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide ~= false then
-                    part.CanCollide = false
-                end
+        noclipConn = runService.RenderStepped:Connect(updateNoclip)
+        
+        -- Отслеживаем новые части
+        char.DescendantAdded:Connect(function(part)
+            if noclip and part:IsA("BasePart") then
+                part.CanCollide = false
             end
         end)
         
         noclipBtn.Text = "👻 NOCLIP: ON"
         noclipBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 100)
     else
-        -- Включаем коллизии
         for _, part in ipairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = true
@@ -372,3 +425,4 @@ end)
 
 print("✅ FLOZEXX FLY + NOCLIP ЗАГРУЖЕН!")
 print("🎮 F - Fly | V - Noclip")
+print("📦 Работает в любой игре!")
