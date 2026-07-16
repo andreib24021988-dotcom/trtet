@@ -1,6 +1,6 @@
 --[[
     FLY + NOCLIP GUI by FlozeXX
-    Исправленная версия без ошибок
+    ПОЛНОСТЬЮ РАБОЧАЯ ВЕРСИЯ
 ]]
 
 local player = game.Players.LocalPlayer
@@ -47,22 +47,41 @@ mainFrame.BackgroundTransparency = 0.05
 mainFrame.BorderSizePixel = 0
 mainFrame.Parent = screenGui
 
--- Затенение
-local shadow = Instance.new("Frame")
-shadow.Name = "Shadow"
-shadow.Size = UDim2.new(1, 20, 1, 20)
-shadow.Position = UDim2.new(0, -10, 0, -10)
-shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-shadow.BackgroundTransparency = 0.6
-shadow.BorderSizePixel = 0
-shadow.Parent = mainFrame
+-- ПЕРЕМЕЩЕНИЕ GUI
+local dragActive = false
+local dragStart = Vector2.new()
+local dragFrameStart = UDim2.new()
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragActive = true
+        dragStart = input.Position
+        dragFrameStart = mainFrame.Position
+    end
+end)
+
+mainFrame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragActive = false
+    end
+end)
+
+userInputService.InputChanged:Connect(function(input)
+    if dragActive and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(
+            dragFrameStart.X.Scale, dragFrameStart.X.Offset + delta.X,
+            dragFrameStart.Y.Scale, dragFrameStart.Y.Offset + delta.Y
+        )
+    end
+end)
 
 -- Углы для главной панели
 local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 15)
 mainCorner.Parent = mainFrame
 
--- Основная панель с прозрачностью (БЕЗ BorderTransparency)
+-- Основная панель
 local glassFrame = Instance.new("Frame")
 glassFrame.Name = "GlassFrame"
 glassFrame.Size = UDim2.new(1, 0, 1, 0)
@@ -111,9 +130,9 @@ divider.BackgroundTransparency = 0.6
 divider.BorderSizePixel = 0
 divider.Parent = glassFrame
 
--- ФУНКЦИЯ СОЗДАНИЯ КНОПКИ
+-- ФУНКЦИЯ СОЗДАНИЯ КНОПКИ (TextButton)
 local function createButton(name, text, yPos, color)
-    local button = Instance.new("Frame")
+    local button = Instance.new("TextButton")
     button.Name = name
     button.Size = UDim2.new(0.85, 0, 0, 55)
     button.Position = UDim2.new(0.075, 0, 0, yPos)
@@ -121,6 +140,7 @@ local function createButton(name, text, yPos, color)
     button.BackgroundTransparency = 0.3
     button.BorderSizePixel = 2
     button.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    button.Text = ""
     button.Parent = glassFrame
     
     local buttonCorner = Instance.new("UICorner")
@@ -439,7 +459,7 @@ function toggleNoclip()
     end
 end
 
--- ОБРАБОТЧИКИ КНОПОК
+-- ОБРАБОТЧИКИ КНОПОК (теперь работают!)
 flyButton.MouseButton1Click:Connect(toggleFly)
 noclipButton.MouseButton1Click:Connect(toggleNoclip)
 
