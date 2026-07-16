@@ -1,166 +1,229 @@
--- Thunder Style UI
--- Roblox Studio LocalScript
+--[[
+    РАБОЧИЙ FLY + NOCLIP ДЛЯ ROBLOX
+    Управление:
+    F = Вкл/Выкл полёт
+    V = Вкл/Выкл noclip
+    Пробел = Вверх (в полёте)
+    Shift = Вниз (в полёте)
+    WASD = Движение
+]]
 
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
+-- Проверка, что скрипт выполняется в локальном игроке
+local player = game.Players.LocalPlayer
+if not player then return end
 
-local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- ScreenGui
-local gui = Instance.new("ScreenGui")
-gui.Name = "ThunderHubUI"
-gui.Parent = player.PlayerGui
-gui.ResetOnSpawn = false
+-- Переменные состояния
+local flying = false
+local noclipEnabled = false
+local speed = 50
+local bodyVelocity = nil
+local bodyGyro = nil
 
-
--- Main Window
-local main = Instance.new("Frame")
-main.Size = UDim2.new(0,600,0,380)
-main.Position = UDim2.new(0.5,-300,0.5,-190)
-main.BackgroundColor3 = Color3.fromRGB(18,18,22)
-main.BorderSizePixel = 0
-main.Parent = gui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0,10)
-corner.Parent = main
-
-
--- Title
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1,0,0,35)
-title.BackgroundTransparency = 1
-title.Text = "Thunder Hub | Custom"
-title.TextColor3 = Color3.fromRGB(255,255,255)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 16
-title.Parent = main
-
-
--- Tabs
-local tabs = Instance.new("Frame")
-tabs.Size = UDim2.new(0,150,1,-35)
-tabs.Position = UDim2.new(0,0,0,35)
-tabs.BackgroundColor3 = Color3.fromRGB(14,14,18)
-tabs.Parent = main
-
-
-local content = Instance.new("Frame")
-content.Size = UDim2.new(1,-160,1,-45)
-content.Position = UDim2.new(0,160,0,45)
-content.BackgroundTransparency = 1
-content.Parent = main
-
-
-
-local function createButton(text,y,callback)
-
-	local b = Instance.new("TextButton")
-	b.Size = UDim2.new(0.9,0,0,35)
-	b.Position = UDim2.new(0.05,0,0,y)
-	b.BackgroundColor3 = Color3.fromRGB(35,35,42)
-	b.Text = text
-	b.TextColor3 = Color3.new(1,1,1)
-	b.Font = Enum.Font.Gotham
-	b.TextSize = 14
-	b.Parent = content
-
-	local c = Instance.new("UICorner")
-	c.Parent=b
-
-	b.MouseButton1Click:Connect(callback)
-
-	return b
+-- Функция для создания Velocity и Gyro
+local function createFlyObjects()
+    if bodyVelocity then bodyVelocity:Destroy() end
+    if bodyGyro then bodyGyro:Destroy() end
+    
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = rootPart
+    
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+    bodyGyro.P = 1e5
+    bodyGyro.CFrame = rootPart.CFrame
+    bodyGyro.Parent = rootPart
 end
 
-
-local function toggle(text,y)
-
-	local state=false
-
-	local b=createButton(text.." : OFF",y,function()
-
-		state=not state
-
-		if state then
-			b.Text=text.." : ON"
-			b.BackgroundColor3=Color3.fromRGB(0,170,100)
-		else
-			b.Text=text.." : OFF"
-			b.BackgroundColor3=Color3.fromRGB(35,35,42)
-		end
-
-	end)
-
+-- Удаление объектов полёта
+local function destroyFlyObjects()
+    if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
+    if bodyGyro then bodyGyro:Destroy() bodyGyro = nil end
 end
 
-
--- Left menu
-
-local categories={
-	"Character",
-	"Visual",
-	"Players",
-	"Teleport",
-	"Settings"
-}
-
-
-for i,v in ipairs(categories) do
-
-	local b=Instance.new("TextButton")
-
-	b.Size=UDim2.new(0.9,0,0,35)
-	b.Position=UDim2.new(0.05,0,0,(i-1)*45+10)
-
-	b.Text=v
-	b.BackgroundColor3=Color3.fromRGB(35,35,42)
-	b.TextColor3=Color3.new(1,1,1)
-
-	b.Font=Enum.Font.Gotham
-	b.TextSize=14
-
-	b.Parent=tabs
-
-
-	local c=Instance.new("UICorner")
-	c.Parent=b
-
+-- Функция полёта (вызывается каждый кадр)
+local function flyUpdate()
+    if not flying then return end
+    if not bodyVelocity or not bodyGyro then
+        createFlyObjects()
+    end
+    
+    -- Получаем направление камеры
+    local camera = workspace.CurrentCamera
+    local forward = camera.CFrame.LookVector
+    local right = camera.CFrame.RightVector
+    local up = camera.CFrame.UpVector
+    
+    -- Ввод с клавиатуры
+    local moveDirection = Vector3.new(0, 0, 0)
+    
+    -- WASD
+    if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.W) then
+        moveDirection = moveDirection + forward
+    end
+    if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.S) then
+        moveDirection = moveDirection - forward
+    end
+    if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.A) then
+        moveDirection = moveDirection - right
+    end
+    if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.D) then
+        moveDirection = moveDirection + right
+    end
+    
+    -- Вверх/Вниз
+    if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.Space) then
+        moveDirection = moveDirection + up
+    end
+    if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.LeftShift) then
+        moveDirection = moveDirection - up
+    end
+    
+    -- Нормализуем и применяем скорость
+    if moveDirection.Magnitude > 0 then
+        moveDirection = moveDirection.Unit * speed
+    end
+    
+    -- Обновляем Velocity
+    bodyVelocity.Velocity = moveDirection
+    
+    -- Поворачиваем персонажа в сторону движения
+    if moveDirection.Magnitude > 0.1 then
+        bodyGyro.CFrame = CFrame.new(rootPart.Position, rootPart.Position + moveDirection)
+    else
+        bodyGyro.CFrame = camera.CFrame * CFrame.new(0, 0, -1)
+    end
 end
 
+-- Включение полёта
+local function startFly()
+    if flying then return end
+    flying = true
+    
+    -- Отключаем гравитацию
+    humanoid.PlatformStand = true
+    
+    -- Создаём объекты для полёта
+    createFlyObjects()
+    
+    -- Запускаем обновление
+    game:GetService("RunService").RenderStepped:Connect(flyUpdate)
+    
+    print("🛫 Полёт ВКЛЮЧЁН")
+end
 
+-- Выключение полёта
+local function stopFly()
+    if not flying then return end
+    flying = false
+    
+    -- Включаем гравитацию обратно
+    humanoid.PlatformStand = false
+    
+    -- Удаляем объекты
+    destroyFlyObjects()
+    
+    print("🛬 Полёт ВЫКЛЮЧЁН")
+end
 
--- Example options
+-- Переключение полёта
+local function toggleFly()
+    if flying then
+        stopFly()
+    else
+        startFly()
+    end
+end
 
-toggle("Infinite Jump",20)
-toggle("No Clip",65)
-toggle("Custom Speed",110)
-toggle("Custom Jump Power",155)
+-- Noclip функция
+local function toggleNoclip()
+    noclipEnabled = not noclipEnabled
+    
+    if noclipEnabled then
+        -- Включаем noclip
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+        
+        -- Отключаем коллизии для новых частей
+        character.DescendantAdded:Connect(function(part)
+            if noclipEnabled and part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end)
+        
+        print("👻 Noclip ВКЛЮЧЁН")
+    else
+        -- Выключаем noclip
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+        print("🔒 Noclip ВЫКЛЮЧЁН")
+    end
+end
 
-createButton("Refresh Player List",210,function()
-	print("Player list refreshed")
+-- Обработка нажатий клавиш
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    -- F - полёт
+    if input.KeyCode == Enum.KeyCode.F then
+        toggleFly()
+    end
+    
+    -- V - noclip
+    if input.KeyCode == Enum.KeyCode.V then
+        toggleNoclip()
+    end
 end)
 
-
-createButton("Teleport Spawn",255,function()
-	print("Teleport example")
+-- Очистка при смерти персонажа
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    rootPart = character:WaitForChild("HumanoidRootPart")
+    humanoid = character:WaitForChild("Humanoid")
+    
+    -- Сбрасываем состояние
+    if flying then
+        stopFly()
+    end
+    
+    -- Если noclip был включён, отключаем
+    if noclipEnabled then
+        noclipEnabled = false
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
 end)
 
+-- Информация в консоль
+print([[
 
+═══════════════════════════════════════
+  🚀 FLY + NOCLIP СКРИПТ ЗАГРУЖЕН!
+  
+  Управление:
+  [F] - Вкл/Выкл полёт
+  [V] - Вкл/Выкл noclip
+  
+  В полёте:
+  [WASD] - Движение
+  [Пробел] - Вверх
+  [Shift] - Вниз
+  
+  Скорость: 50 (можно изменить в коде)
+═══════════════════════════════════════
 
--- Open / Close menu
-
-main.Visible=true
-
-UserInputService.InputBegan:Connect(function(key,gp)
-
-	if gp then return end
-
-	if key.KeyCode==Enum.KeyCode.RightShift then
-
-		main.Visible=not main.Visible
-
-	end
-
-end)
+]])
